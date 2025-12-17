@@ -1,0 +1,190 @@
+<h1>Simplified Neuro-Performance &amp; Biohacking Optimization Platform Database</h1>
+<p>This document presents a simplified version of the Neuro-Performance &amp; Biohacking Optimization Platform database. The original design was comprehensive, and this version has been streamlined for a more focused university project.</p>
+<p>The key changes are:</p>
+<ul>
+<li>The number of tables has been reduced from 17 to 13.</li>
+<li>The number of attributes (columns) in each table has been reduced to between 4 and 10, making the schema easier to manage.</li>
+<li>The focus is on the core functionality: tracking clients, interventions, and their outcomes.</li>
+</ul>
+<h2>Simplified Database Schema</h2>
+<p>Here are the 13 tables in the simplified schema:</p>
+<h3>1. <code>clients</code></h3>
+<p>Stores core information about each client.</p>
+<pre><code class="language-sql">CREATE TABLE clients (
+    client_id INT PRIMARY KEY AUTO_INCREMENT,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE NOT NULL,
+    gender ENUM(&#39;Male&#39;, &#39;Female&#39;, &#39;Non-binary&#39;, &#39;Prefer not to say&#39;),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(20),
+    primary_goals TEXT,
+    consent_signed BOOLEAN DEFAULT FALSE
+);
+</code></pre>
+<h3>2. <code>genetic_profiles</code></h3>
+<p>Stores key genetic markers for each client, which can influence biohacking protocols.</p>
+<pre><code class="language-sql">CREATE TABLE genetic_profiles (
+    profile_id INT PRIMARY KEY AUTO_INCREMENT,
+    client_id INT UNIQUE NOT NULL,
+    test_date DATE NOT NULL,
+    comt_genotype ENUM(&#39;Val/Val&#39;, &#39;Val/Met&#39;, &#39;Met/Met&#39;, &#39;Unknown&#39;),
+    mthfr_c677t ENUM(&#39;CC&#39;, &#39;CT&#39;, &#39;TT&#39;, &#39;Unknown&#39;),
+    apoe_genotype ENUM(&#39;e2/e2&#39;, &#39;e2/e3&#39;, &#39;e2/e4&#39;, &#39;e3/e3&#39;, &#39;e3/e4&#39;, &#39;e4/e4&#39;, &#39;Unknown&#39;),
+    actn3_r577x ENUM(&#39;RR&#39;, &#39;RX&#39;, &#39;XX&#39;, &#39;Unknown&#39;),
+    additional_markers JSON,
+    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+);
+</code></pre>
+<h3>3. <code>intervention_categories</code></h3>
+<p>A simple table to categorize interventions.</p>
+<pre><code class="language-sql">CREATE TABLE intervention_categories (
+    category_id INT PRIMARY KEY AUTO_INCREMENT,
+    category_name VARCHAR(100) UNIQUE NOT NULL,
+    parent_category_id INT,
+    description TEXT,
+    FOREIGN KEY (parent_category_id) REFERENCES intervention_categories(category_id)
+);
+</code></pre>
+<h3>4. <code>interventions</code></h3>
+<p>A catalog of all available biohacking interventions.</p>
+<pre><code class="language-sql">CREATE TABLE interventions (
+    intervention_id INT PRIMARY KEY AUTO_INCREMENT,
+    intervention_name VARCHAR(200) NOT NULL,
+    category_id INT NOT NULL,
+    intervention_type ENUM(&#39;Supplement&#39;, &#39;Peptide&#39;, &#39;Therapy&#39;, &#39;Procedure&#39;, &#39;Device&#39;, &#39;Lifestyle&#39;) NOT NULL,
+    standard_dosage VARCHAR(100),
+    dosage_unit VARCHAR(50),
+    administration_route VARCHAR(100),
+    primary_benefits TEXT,
+    mechanism_of_action TEXT,
+    FOREIGN KEY (category_id) REFERENCES intervention_categories(category_id)
+);
+</code></pre>
+<h3>5. <code>client_protocols</code></h3>
+<p>Links clients to the interventions they are undergoing.</p>
+<pre><code class="language-sql">CREATE TABLE client_protocols (
+    protocol_id INT PRIMARY KEY AUTO_INCREMENT,
+    client_id INT NOT NULL,
+    intervention_id INT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    status ENUM(&#39;Active&#39;, &#39;Completed&#39;, &#39;Discontinued&#39;, &#39;Paused&#39;) DEFAULT &#39;Active&#39;,
+    prescribed_dosage DECIMAL(10,2) NOT NULL,
+    frequency VARCHAR(100) NOT NULL,
+    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE,
+    FOREIGN KEY (intervention_id) REFERENCES interventions(intervention_id)
+);
+</code></pre>
+<h3>6. <code>protocol_logs</code></h3>
+<p>Tracks a client&#39;s adherence and feedback for a specific protocol.</p>
+<pre><code class="language-sql">CREATE TABLE protocol_logs (
+    log_id INT PRIMARY KEY AUTO_INCREMENT,
+    protocol_id INT NOT NULL,
+    log_date DATE NOT NULL,
+    dosage_taken DECIMAL(10,2),
+    taken_as_prescribed BOOLEAN DEFAULT TRUE,
+    subjective_effects TEXT,
+    FOREIGN KEY (protocol_id) REFERENCES client_protocols(protocol_id) ON DELETE CASCADE
+);
+</code></pre>
+<h3>7. <code>biomarker_types</code></h3>
+<p>Defines the different kinds of biomarkers that can be tracked.</p>
+<pre><code class="language-sql">CREATE TABLE biomarker_types (
+    biomarker_id INT PRIMARY KEY AUTO_INCREMENT,
+    biomarker_name VARCHAR(200) UNIQUE NOT NULL,
+    biomarker_category ENUM(&#39;Blood&#39;, &#39;Hormone&#39;, &#39;Neurotransmitter&#39;, &#39;Metabolic&#39;, &#39;Inflammatory&#39;, &#39;Cognitive&#39;, &#39;Physical&#39;, &#39;Other&#39;) NOT NULL,
+    measurement_unit VARCHAR(50),
+    optimal_min DECIMAL(10,4),
+    optimal_max DECIMAL(10,4),
+    description TEXT
+);
+</code></pre>
+<h3>8. <code>biomarker_readings</code></h3>
+<p>Stores the actual biomarker measurements for a client over time.</p>
+<pre><code class="language-sql">CREATE TABLE biomarker_readings (
+    reading_id INT PRIMARY KEY AUTO_INCREMENT,
+    client_id INT NOT NULL,
+    biomarker_id INT NOT NULL,
+    reading_date DATE NOT NULL,
+    value DECIMAL(12,4) NOT NULL,
+    testing_facility VARCHAR(200),
+    flag ENUM(&#39;Low&#39;, &#39;Normal&#39;, &#39;High&#39;, &#39;Critical Low&#39;, &#39;Critical High&#39;),
+    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE,
+    FOREIGN KEY (biomarker_id) REFERENCES biomarker_types(biomarker_id)
+);
+</code></pre>
+<h3>9. <code>performance_metrics</code></h3>
+<p>Records client performance data, from cognitive tests or subjective ratings.</p>
+<pre><code class="language-sql">CREATE TABLE performance_metrics (
+    metric_id INT PRIMARY KEY AUTO_INCREMENT,
+    client_id INT NOT NULL,
+    metric_date DATE NOT NULL,
+    reaction_time_ms INT,
+    memory_score DECIMAL(5,2),
+    focus_duration_minutes INT,
+    energy_level_score TINYINT,
+    mood_score TINYINT,
+    stress_level_score TINYINT,
+    data_source ENUM(&#39;Manual&#39;, &#39;Cognitive Test&#39;, &#39;Assessment&#39;) DEFAULT &#39;Manual&#39;,
+    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+);
+</code></pre>
+<h3>10. <code>adverse_events</code></h3>
+<p>Logs any adverse reactions or side effects a client experiences.</p>
+<pre><code class="language-sql">CREATE TABLE adverse_events (
+    event_id INT PRIMARY KEY AUTO_INCREMENT,
+    client_id INT NOT NULL,
+    protocol_id INT,
+    event_date DATE NOT NULL,
+    severity ENUM(&#39;Mild&#39;, &#39;Moderate&#39;, &#39;Severe&#39;, &#39;Life-threatening&#39;) NOT NULL,
+    symptoms TEXT NOT NULL,
+    suspected_intervention_id INT,
+    action_taken TEXT,
+    outcome ENUM(&#39;Resolved&#39;, &#39;Ongoing&#39;, &#39;Hospitalized&#39;, &#39;Fatal&#39;),
+    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE,
+    FOREIGN KEY (protocol_id) REFERENCES client_protocols(protocol_id),
+    FOREIGN KEY (suspected_intervention_id) REFERENCES interventions(intervention_id)
+);
+</code></pre>
+<h3>11. <code>contraindications</code></h3>
+<p>Stores information about potentially dangerous combinations of interventions.</p>
+<pre><code class="language-sql">CREATE TABLE contraindications (
+    contraindication_id INT PRIMARY KEY AUTO_INCREMENT,
+    intervention_id_1 INT NOT NULL,
+    intervention_id_2 INT,
+    contraindication_type ENUM(&#39;Absolute&#39;, &#39;Relative&#39;, &#39;Drug Interaction&#39;, &#39;Condition-based&#39;, &#39;Genetic&#39;) NOT NULL,
+    description TEXT NOT NULL,
+    severity ENUM(&#39;Critical&#39;, &#39;High&#39;, &#39;Moderate&#39;, &#39;Low&#39;) NOT NULL,
+    FOREIGN KEY (intervention_id_1) REFERENCES interventions(intervention_id),
+    FOREIGN KEY (intervention_id_2) REFERENCES interventions(intervention_id)
+);
+</code></pre>
+<h3>12. <code>providers</code></h3>
+<p>Stores information about the professionals who administer protocols.</p>
+<pre><code class="language-sql">CREATE TABLE providers (
+    provider_id INT PRIMARY KEY AUTO_INCREMENT,
+    provider_type ENUM(&#39;Physician&#39;, &#39;Naturopath&#39;, &#39;Nutritionist&#39;, &#39;Performance Coach&#39;, &#39;Other&#39;) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    credentials VARCHAR(200),
+    specialization TEXT,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(20)
+);
+</code></pre>
+<h3>13. <code>wearable_data</code></h3>
+<p>Stores data imported from wearable devices like smartwatches.</p>
+<pre><code class="language-sql">CREATE TABLE wearable_data (
+    data_id INT PRIMARY KEY AUTO_INCREMENT,
+    client_id INT NOT NULL,
+    data_date DATE NOT NULL,
+    device_type ENUM(&#39;Oura&#39;, &#39;Whoop&#39;, &#39;Apple Watch&#39;, &#39;Garmin&#39;, &#39;Fitbit&#39;, &#39;CGM&#39;, &#39;Other&#39;) NOT NULL,
+    total_sleep_minutes INT,
+    hrv DECIMAL(6,2),
+    resting_hr INT,
+    steps INT,
+    active_calories INT,
+    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+);
+</code></pre>
